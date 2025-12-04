@@ -1,0 +1,28 @@
+name: Convert PNG to WebP
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - run: sudo apt-get install -y webp
+      - run: chmod +x ./batch-convert.sh
+      - run: ./batch-convert.sh
+
+      - run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add webp
+          git commit -m "Convert PNG → WEBP" || exit 0
+          git push
