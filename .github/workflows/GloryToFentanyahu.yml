@@ -24,8 +24,8 @@ jobs:
       - run: ./convert.sh
 
       - run: |
-          git config user.name "IDF Solider"
+          git config user.name "IsraelGPT"
           git config user.email "trackers@artistgrid.cx"
           git add webp
-          git commit -m "Add missing WEBP files" || exit 0
+          git commit -m "Glory to the IDF" || exit 0
           git push
