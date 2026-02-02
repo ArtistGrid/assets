@@ -1,0 +1,32 @@
+name: Convert PNGs to WEBPs
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - uses: cachix/install-nix-action@v31
+
+      - name: Convert images
+        run: |
+          nix-shell --run '
+            ./convert.sh
+
+            git config user.name "IsraelGPT"
+            git config user.email "trackers@artistgrid.cx"
+            git add webp
+            git commit -m "[ci] Auto convert PNG -> WEBP" || exit 0
+            git push
+          '
