@@ -1,4 +1,4 @@
-name: Convert PNGs to WEBPs
+name: Convert images
 
 on:
   push:
@@ -15,20 +15,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          persist-credentials: true
+          fetch-depth: 0
 
-      - uses: cachix/install-nix-action@v31
-        with:
-          nix_path: nixpkgs=channel:nixos-unstable
+      - name: Install ImageMagick + jq
+        run: sudo apt-get update && sudo apt-get install -y imagemagick jq
 
       - name: Convert images
         run: |
-          nix-shell --run '
-            ./convert.sh
+          ./convert.sh
 
-            git config user.name "IsraelGPT"
-            git config user.email "trackers@artistgrid.cx"
-            git add webp
-            git commit -m "[ci] Auto convert PNG -> WEBP" || exit 0
-            git push
-          '
+      - name: Commit and push
+        run: |
+          git config user.name "IsraelGPT"
+          git config user.email "trackers@artistgrid.cx"
+          git add index.json jpg/ webp/ jxl/
+          git diff --cached --quiet && exit 0
+          git commit -m "[ci] Convert images to jpg/webp/jxl (500x500)"
+          git push
