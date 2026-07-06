@@ -2,16 +2,124 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title> </title>
-  <meta http-equiv="refresh" content="0; url=https://github.com/ArtistGrid/assets">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ArtistGrid Assets - Image Compression Comparison</title>
   <style>
-    html, body {
-      margin: 0;
-      height: 100%;
-      background: #000000;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; background: #111; color: #eee; padding: 2rem; }
+    h1 { font-size: 1.5rem; margin-bottom: .25rem; }
+    a { color: #4af; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    p.sub { color: #888; margin-bottom: 2rem; font-size: .9rem; }
+    .controls { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; align-items: center; }
+    .controls label { font-size: .85rem; color: #aaa; }
+    .controls select, .controls input { background: #222; color: #eee; border: 1px solid #333; padding: .4rem .6rem; border-radius: 4px; font-size: .85rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; }
+    .card { background: #1a1a1a; border-radius: 8px; overflow: hidden; }
+    .card-img { position: relative; width: 100%; aspect-ratio: 1; background: #000; }
+    .card-img img { width: 100%; height: 100%; object-fit: contain; position: absolute; top: 0; left: 0; }
+    .card-img .slider-wrap { position: absolute; inset: 0; overflow: hidden; }
+    .card-img .slider-wrap img { clip-path: inset(0 50% 0 0); }
+    .card-img input[type=range] { position: absolute; bottom: 8px; left: 8px; right: 8px; z-index: 2; accent-color: #4af; }
+    .card-img .label { position: absolute; top: 6px; font-size: .7rem; padding: 2px 6px; border-radius: 3px; background: #000a; }
+    .card-img .label.left { left: 6px; }
+    .card-img .label.right { right: 6px; }
+    .card-info { padding: .6rem .8rem; font-size: .8rem; }
+    .card-info .name { font-weight: 600; margin-bottom: .3rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sizes { display: flex; gap: .6rem; flex-wrap: wrap; }
+    .sizes span { color: #888; }
+    .sizes .pct { color: #4f8; }
   </style>
 </head>
-<body onclick="location.href='https://github.com/ArtistGrid/assets'">
+<body>
+  <h1>ArtistGrid Assets</h1>
+  <p class="sub">Original images compressed to 500x500 thumbnails in JPG, WebP, and JXL. Drag the slider to compare. <a href="https://github.com/artistgrid/assets">GitHub</a></p>
+
+  <div class="controls">
+    <label>Format:
+      <select id="format">
+        <option value="jxl">JXL</option>
+        <option value="webp">WebP</option>
+        <option value="jpg">JPG</option>
+      </select>
+    </label>
+    <label>Search:
+      <input type="text" id="search" placeholder="filter...">
+    </label>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <script>
+    const fmt = document.getElementById('format');
+    const search = document.getElementById('search');
+    const grid = document.getElementById('grid');
+
+    async function init() {
+      const res = await fetch('index.json');
+      const files = await res.json();
+      render(files);
+
+      fmt.onchange = () => render(files);
+      search.oninput = () => render(files);
+    }
+
+    function render(files) {
+      const f = fmt.value;
+      const q = search.value.toLowerCase();
+      grid.innerHTML = '';
+
+      files.filter(name => !q || name.toLowerCase().includes(q)).forEach(name => {
+        const base = name.replace(/\.[^.]+$/, '');
+
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <div class="card-img">
+            <span class="label left">OG</span>
+            <span class="label right">${f.toUpperCase()}</span>
+            <img id="a-${base}" src="og/${name}" loading="lazy">
+            <div class="slider-wrap">
+              <img id="b-${base}" src="${f}/${base}.${f}" loading="lazy">
+            </div>
+            <input type="range" min="0" max="100" value="50"
+              oninput="this.previousElementSibling.querySelector('img').style.clipPath='inset(0 '+ (100-this.value) +'% 0 0)'">
+          </div>
+          <div class="card-info">
+            <div class="name">${name}</div>
+            <div class="sizes" id="sizes-${base}"></div>
+          </div>
+        `;
+        grid.appendChild(card);
+
+        loadSizes(base, name, f);
+      });
+    }
+
+    async function loadSizes(base, name, f) {
+      const el = document.getElementById(`sizes-${base}`);
+      try {
+        const [ogRes, fmtRes] = await Promise.all([
+          fetch(`og/${name}`, { method: 'HEAD' }),
+          fetch(`${f}/${base}.${f}`, { method: 'HEAD' })
+        ]);
+        const ogSize = +ogRes.headers.get('content-length') || 0;
+        const fmtSize = +fmtRes.headers.get('content-length') || 0;
+        const pct = ogSize ? Math.round((1 - fmtSize / ogSize) * 100) : 0;
+        el.innerHTML = `
+          <span>OG: ${fmtBytes(ogSize)}</span>
+          <span>${f.toUpperCase()}: ${fmtBytes(fmtSize)}</span>
+          <span class="pct">-${pct}%</span>
+        `;
+      } catch {}
+    }
+
+    function fmtBytes(b) {
+      if (b < 1024) return b + ' B';
+      return (b / 1024).toFixed(1) + ' KB';
+    }
+
+    init();
+  </script>
 </body>
 </html>
