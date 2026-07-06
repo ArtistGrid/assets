@@ -7,14 +7,12 @@ ls -1 og | grep -iE '\.(png|jpg|jpeg|webp)$' | jq -R -s 'split("\n") | map(selec
 
 convert_and_maybe_keep() {
     local in="$1" ext="$2" flags="$3"
-    local base src_ext out in_size out_size
+    local base out
 
     base="$(basename "$in")"
     base="${base%.*}"
-    src_ext="${in##*.}"
     out="$ext/$base.$ext"
 
-    [ "$ext" = "$src_ext" ] && return
     [ -f "$out" ] && return
 
     magick "$in" -resize 500x500 -strip $flags "$out"
