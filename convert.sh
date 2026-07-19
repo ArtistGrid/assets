@@ -3,6 +3,11 @@ set -euo pipefail
 
 mkdir -p jpg webp jxl
 
+if ! convert -list format 2>/dev/null | grep -qi 'JXL.*rw'; then
+    echo "ERROR: ImageMagick has no JXL delegate; install libjxl-tools" >&2
+    exit 1
+fi
+
 ls -1 og | grep -iE '\.(png|jpg|jpeg|webp)$' | jq -R -s 'split("\n") | map(select(length > 0))' > index.json
 
 convert_and_maybe_keep() {
@@ -18,6 +23,16 @@ convert_and_maybe_keep() {
     if ! convert "$in" -resize 500x500\> -strip $flags "$out"; then
         echo "ERROR: failed to convert $in -> $out" >&2
         return 1
+    fi
+
+    if [ "$ext" = "jxl" ]; then
+        local magic
+        magic="$(xxd -p -l4 "$out" 2>/dev/null)"
+        if [ "${magic:0:4}" != "ff0a" ]; then
+            echo "ERROR: $out is not a valid JXL (magic=$magic); JXL delegate likely missing" >&2
+            rm -f "$out"
+            return 1
+        fi
     fi
 }
 
