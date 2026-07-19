@@ -15,7 +15,7 @@ convert_and_maybe_keep() {
 
     [ -f "$out" ] && return
 
-    magick "$in" -resize 500x500 -strip $flags "$out"
+    magick "$in" -resize 500x500\> -strip $flags "$out"
 }
 
 export -f convert_and_maybe_keep
