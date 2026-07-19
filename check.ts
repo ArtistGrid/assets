@@ -1,8 +1,7 @@
 import { readdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 
 const BASE = "https://sheetsv3.edideaur.workers.dev";
-const IMAGE_DIR = join(import.meta.dir, "og");
 
 const normalize = (s: string): string =>
   s.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -76,28 +75,36 @@ function parseArtists(csv: string): Set<string> {
   return artists;
 }
 
-function availableImages(): Set<string> {
-  const names = new Set<string>();
-  for (const name of readdirSync(IMAGE_DIR)) {
-    const dot = name.lastIndexOf(".");
-    const base = dot === -1 ? name : name.slice(0, dot);
-    names.add(normalize(base));
+const DIRS = ["og", "jpg", "webp", "jxl"].map((d) => join(import.meta.dir, d));
+
+function availableImages(): Map<string, Set<string>> {
+  const byDir = new Map<string, Set<string>>();
+  for (const dir of DIRS) {
+    const names = new Set<string>();
+    for (const name of readdirSync(dir)) {
+      const dot = name.lastIndexOf(".");
+      const base = dot === -1 ? name : name.slice(0, dot);
+      names.add(normalize(base));
+    }
+    byDir.set(dir, names);
   }
-  return names;
+  return byDir;
 }
 
 function main(csv: string): void {
   const artists = parseArtists(csv);
-  const have = availableImages();
+  const byDir = availableImages();
 
   const missing: string[] = [];
   for (const artist of artists) {
-    if (!have.has(normalize(artist))) {
-      missing.push(`${normalize(artist)}`);
+    const n = normalize(artist);
+    const where = DIRS.filter((dir) => !byDir.get(dir)!.has(n));
+    if (where.length > 0) {
+      missing.push(`${n} (missing in: ${where.map((d) => basename(d)).join(", ")})`);
     }
   }
 
-  console.log(`Artists: ${artists.size}, Have: ${have.size}, Missing: ${missing.length}`);
+  console.log(`Artists: ${artists.size}, Missing: ${missing.length}`);
   for (const m of missing) {
     console.log(m);
   }
