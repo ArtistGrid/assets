@@ -15,7 +15,10 @@ convert_and_maybe_keep() {
 
     [ -f "$out" ] && return
 
-    convert "$in" -resize 500x500\> -strip $flags "$out"
+    if ! convert "$in" -resize 500x500\> -strip $flags "$out"; then
+        echo "ERROR: failed to convert $in -> $out" >&2
+        return 1
+    fi
 }
 
 export -f convert_and_maybe_keep
@@ -26,8 +29,4 @@ find og -maxdepth 1 -type f \( \
     -iname "*.jpeg" -o \
     -iname "*.webp" \
 \) -print0 \
-| xargs -0 -P "$(nproc)" -I{} bash -c '
-convert_and_maybe_keep "{}" "jpg"  "-quality 30"
-convert_and_maybe_keep "{}" "webp" "-quality 30 -define webp:method=6"
-convert_and_maybe_keep "{}" "jxl"  "-quality 30 -define jxl:effort=9"
-'
+| xargs -0 -P "$(nproc)" -I{} bash -c 'set -e; convert_and_maybe_keep "{}" "jpg"  "-quality 30"; convert_and_maybe_keep "{}" "webp" "-quality 30 -define webp:method=6"; convert_and_maybe_keep "{}" "jxl"  "-quality 30 -define jxl:effort=9"'

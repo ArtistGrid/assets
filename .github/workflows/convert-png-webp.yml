@@ -18,7 +18,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install ImageMagick + jq
-        run: sudo apt-get update && sudo apt-get install -y imagemagick jq
+        run: sudo apt-get update && sudo apt-get install -y imagemagick jq libjxl-tools
 
       - name: Convert images
         run: |
