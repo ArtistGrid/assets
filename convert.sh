@@ -3,7 +3,16 @@ set -euo pipefail
 
 mkdir -p jpg webp jxl
 
-if ! convert -list format 2>/dev/null | grep -qi 'JXL.*rw'; then
+if command -v magick >/dev/null 2>&1; then
+    MAGICK="magick"
+elif command -v convert >/dev/null 2>&1; then
+    MAGICK="convert"
+else
+    echo "ERROR: ImageMagick (magick/convert) not found" >&2
+    exit 1
+fi
+
+if ! "$MAGICK" -list format 2>/dev/null | grep -qi 'JXL.*rw'; then
     echo "ERROR: ImageMagick has no JXL delegate; install libjxl-tools" >&2
     exit 1
 fi
@@ -20,7 +29,7 @@ convert_and_maybe_keep() {
 
     [ -f "$out" ] && return
 
-    if ! convert "$in" -resize 500x500\> -strip $flags "$out"; then
+    if ! "$MAGICK" "$in" -resize 500x500\> -strip $flags "$out"; then
         echo "ERROR: failed to convert $in -> $out" >&2
         return 1
     fi
