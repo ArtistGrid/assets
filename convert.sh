@@ -8,8 +8,8 @@ if ! command -v vips >/dev/null 2>&1; then
     exit 1
 fi
 
-if ! ls /usr/lib/vips-modules*/vips-jxl.so >/dev/null 2>&1; then
-    echo "ERROR: libvips has no JXL support; install libvips with libjxl" >&2
+if ! command -v cjxl >/dev/null 2>&1; then
+    echo "ERROR: cjxl not found; install libjxl-tools" >&2
     exit 1
 fi
 
@@ -25,24 +25,41 @@ convert_one() {
 
     [ -f "$out" ] && return
 
-    thumb="$(mktemp --suffix=.jpg)"
+    thumb="$(mktemp --suffix=.png)"
     if ! vips thumbnail "$in" "$thumb" 500 --height 500 2>/dev/null; then
         echo "ERROR: failed to thumbnail $in" >&2
         rm -f "$thumb"
         return 1
     fi
 
-    if ! vips copy "$thumb" "$out[$opts]" 2>/dev/null; then
-        echo "ERROR: failed to convert $in -> $out" >&2
-        rm -f "$thumb" "$out"
-        return 1
-    fi
+    case "$ext" in
+        jpg)
+            if ! vips copy "$thumb" "$out[$opts]" 2>/dev/null; then
+                echo "ERROR: failed to convert $in -> $out" >&2
+                rm -f "$thumb" "$out"
+                return 1
+            fi
+            ;;
+        webp)
+            if ! vips copy "$thumb" "$out[$opts]" 2>/dev/null; then
+                echo "ERROR: failed to convert $in -> $out" >&2
+                rm -f "$thumb" "$out"
+                return 1
+            fi
+            ;;
+        jxl)
+            if ! cjxl "$thumb" "$out" -q 30 -e 9 2>/dev/null; then
+                echo "ERROR: failed to convert $in -> $out" >&2
+                rm -f "$thumb" "$out"
+                return 1
+            fi
+            ;;
+    esac
     rm -f "$thumb"
 }
 
 convert_and_maybe_keep() {
-    local in="$1" ext="$2" opts="$3"
-    convert_one "$in" "$ext" "$opts"
+    convert_one "$@"
 }
 
 export -f convert_one convert_and_maybe_keep
@@ -53,4 +70,4 @@ find og -maxdepth 1 -type f \( \
     -iname "*.jpeg" -o \
     -iname "*.webp" \
 \) -print0 \
-| xargs -0 -P "$(nproc)" -I{} bash -c 'set -e; convert_and_maybe_keep "{}" "jpg"  "Q=30"; convert_and_maybe_keep "{}" "webp" "Q=30"; convert_and_maybe_keep "{}" "jxl"  "Q=30,effort=9"'
+| xargs -0 -P "$(nproc)" -I{} bash -c 'set -e; convert_and_maybe_keep "{}" "jpg"  "Q=30"; convert_and_maybe_keep "{}" "webp" "Q=30"; convert_and_maybe_keep "{}" "jxl"  ""'
