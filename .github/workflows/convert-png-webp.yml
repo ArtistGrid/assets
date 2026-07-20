@@ -17,16 +17,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install jq + xxd
-        run: sudo apt-get update && sudo apt-get install -y jq xxd
-
-      - name: Install ImageMagick with JXL delegate
-        run: |
-          sudo add-apt-repository -y ppa:ubuntuhandbook1/imagemagick
-          sudo apt-get update
-          sudo apt-get install -y imagemagick libjxl-tools
-          magick -version
-          magick -list format | grep -i jxl
+      - name: Install libvips + jq + xxd
+        run: sudo apt-get update && sudo apt-get install -y libvips-tools libjxl-tools jq xxd
 
       - name: Convert images
         run: |
