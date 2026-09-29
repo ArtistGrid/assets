@@ -1,0 +1,45 @@
+name: Convert images
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  convert:
+    runs-on: blacksmith-32vcpu-ubuntu-2404
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvips-tools libjxl-tools libavif-bin webp jq xxd
+
+      - name: Verify tools
+        run: |
+          vips --version
+          cjxl --version
+          avifenc --version
+          cwebp -version
+          jq --version
+
+      - name: Convert images
+        run: |
+          chmod +x convert.sh
+          ./convert.sh
+
+      - name: Commit and push
+        run: |
+          git config user.name "IsraelGPT"
+          git config user.email "trackers@artistgrid.cx"
+          git add index.json avif/ jpg/ webp/ jxl/
+          git diff --cached --quiet && exit 0
+          git commit -m "[ci] Convert images to avif/jpg/webp/jxl (500x500)"
+          git push

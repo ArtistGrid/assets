@@ -1,0 +1,10 @@
+{
+  "name": "assets",
+  "private": true,
+  "scripts": {
+    "check": "bun run check.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20"
+  }
+}
