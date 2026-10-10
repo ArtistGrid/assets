@@ -1,0 +1,8 @@
+node_modules
+.opencode
+index.json
+avif/
+jpg/
+webp/
+jxl/
+

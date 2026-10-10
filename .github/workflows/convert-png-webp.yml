@@ -1,0 +1,89 @@
+name: Convert images
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: "Force rebuild all images from scratch"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  convert:
+    runs-on: blacksmith-32vcpu-ubuntu-2404
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvips-tools libjxl-tools libavif-bin webp jq xxd
+
+      - name: Verify tools
+        run: |
+          vips --version
+          vipsheader --version || true
+          cjxl --version
+          avifenc --version
+          cwebp -version
+          jq --version
+
+      - name: Restore existing built assets from dist
+        id: restore
+        run: |
+          if [ "${{ github.event.inputs.force_rebuild }}" = "true" ]; then
+            echo "Force rebuild requested; skipping dist cache restore."
+            echo "has_dist=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if git ls-remote --exit-code --heads origin dist >/dev/null 2>&1; then
+            echo "Fetching existing dist branch..."
+            git fetch origin dist --depth=1
+            git checkout FETCH_HEAD -- avif jpg webp jxl 2>/dev/null || true
+            echo "has_dist=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Remote dist branch does not exist yet."
+            echo "has_dist=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Convert images
+        env:
+          FORCE: ${{ github.event.inputs.force_rebuild == 'true' && '1' || '0' }}
+        run: |
+          chmod +x convert.sh
+          ./convert.sh
+
+      - name: Commit and push orphan dist branch
+        run: |
+          git config user.name "IsraelGPT"
+          git config user.email "trackers@artistgrid.cx"
+
+          # Switch to an orphan branch without history
+          git checkout --orphan dist
+          git rm -rf --cached . >/dev/null 2>&1 || true
+
+          # Stage distribution files and directories
+          git add -f index.json index.html 404.html og/ avif/ jpg/ webp/ jxl/
+
+          # If dist already exists remotely, verify if there are any changes
+          if [ "${{ steps.restore.outputs.has_dist }}" = "true" ]; then
+            current_tree="$(git write-tree)"
+            remote_tree="$(git rev-parse FETCH_HEAD^{tree})"
+            if [ "$current_tree" = "$remote_tree" ]; then
+              echo "No changes in built assets compared to existing dist branch. Skipping push."
+              exit 0
+            fi
+          fi
+
+          git commit -m "[ci] Convert images to avif/jpg/webp/jxl (500x500)"
+          git push -f origin HEAD:refs/heads/dist
