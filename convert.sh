@@ -37,7 +37,7 @@ run() {
 }
 
 process_one() {
-    local in="$1" base tmp fmt out part o x b
+    local in="$1" base tmp fmt out part o b
     base="$(basename "$in")"; base="${base%.*}"
 
     local todo=()
@@ -76,9 +76,8 @@ process_one() {
                     run avifenc -s "$AVIF_SPEED" -j 1 -d 10 -y 420 -q "$AVIF_Q" "$tmp/ref.png" "$part"
                 } ;;
             jxl)
-                x=""; [ "$JXL_EFFORT" -ge 10 ] && x="--allow_expert_options"
                 run cjxl "$tmp/ref.png" "$part" -d "$JXL_D" -e "$JXL_EFFORT" \
-                    --num_threads=1 --quiet $x ;;
+                    --num_threads=1 --quiet ;;
             webp)
                 run cwebp -quiet -q "$WEBP_Q" -m 6 -pass 10 -sharp_yuv -af -metadata none \
                     "$tmp/ref.png" -o "$part" ;;
