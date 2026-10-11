@@ -7,10 +7,16 @@ JPG_Q="${JPG_Q:-40}"
 AVIF_Q="${AVIF_Q:-30}"
 JXL_D="${JXL_D:-5.0}"
 AVIF_SPEED="${AVIF_SPEED:-0}"
-JXL_EFFORT="${JXL_EFFORT:-10}"
+JXL_EFFORT="${JXL_EFFORT:-9}"
 FORMATS="${FORMATS:-avif jxl webp jpg}"
 JOBS="${JOBS:-$(nproc)}"
 FORCE="${FORCE:-0}"
+
+# Installed cjxl builds accept --effort 1-9 only; clamp higher values
+# (e.g. from the environment) so jxl encodes don't fail outright.
+if [ "${JXL_EFFORT}" -gt 9 ] 2>/dev/null; then
+    JXL_EFFORT=9
+fi
 
 for c in vips vipsheader cjxl avifenc cwebp jq; do
     command -v "$c" >/dev/null 2>&1 || { echo "ERROR: $c not found" >&2; exit 1; }
