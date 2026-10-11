@@ -12,6 +12,11 @@ FORMATS="${FORMATS:-avif jxl webp jpg}"
 JOBS="${JOBS:-$(nproc)}"
 FORCE="${FORCE:-0}"
 
+# Parallelism already comes from xargs -P "$JOBS" below, and avifenc/cjxl
+# are pinned to 1 thread each — keep vips single-threaded too so N jobs
+# don't spawn N thread pools each (N x N oversubscription).
+export VIPS_CONCURRENCY=1
+
 # Installed cjxl builds accept --effort 1-9 only; clamp higher values
 # (e.g. from the environment) so jxl encodes don't fail outright.
 if [ "${JXL_EFFORT}" -gt 9 ] 2>/dev/null; then
@@ -24,7 +29,7 @@ done
 
 for f in $FORMATS; do mkdir -p "$f"; done
 
-find og -maxdepth 1 -type f \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' \) \
+find og -maxdepth 1 -type f \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' -o -iname '*.avif' \) \
     -printf '%f\n' | sort | jq -R -s 'split("\n") | map(select(length > 0))' > index.json
 
 # Clean up any previously generated outputs whose source file was deleted from og
@@ -98,7 +103,7 @@ process_one() {
 export -f run process_one
 export SIZE WEBP_Q JPG_Q AVIF_Q JXL_D AVIF_SPEED JXL_EFFORT FORMATS FORCE
 
-find og -maxdepth 1 -type f \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' \) -print0 \
+find og -maxdepth 1 -type f \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' -o -iname '*.avif' \) -print0 \
     | xargs -0 -P "$JOBS" -n 1 bash -c 'process_one "$1"' _
 
 echo "done."
