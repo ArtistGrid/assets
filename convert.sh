@@ -12,6 +12,14 @@ FORMATS="${FORMATS:-avif jxl webp jpg}"
 JOBS="${JOBS:-$(nproc)}"
 FORCE="${FORCE:-0}"
 
+# If commit message has [clear], re-encode all images from the beginning
+if [ "$FORCE" != "1" ] && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    commit_msg="$(git log -1 --pretty=%B 2>/dev/null || true)"
+    if echo "$commit_msg" | grep -qi '\[clear\]'; then
+        FORCE=1
+    fi
+fi
+
 # Parallelism already comes from xargs -P "$JOBS" below, and avifenc/cjxl
 # are pinned to 1 thread each — keep vips single-threaded too so N jobs
 # don't spawn N thread pools each (N x N oversubscription).
@@ -27,7 +35,15 @@ for c in vips vipsheader cjxl avifenc cwebp jq; do
     command -v "$c" >/dev/null 2>&1 || { echo "ERROR: $c not found" >&2; exit 1; }
 done
 
-for f in $FORMATS; do mkdir -p "$f"; done
+if [ "$FORCE" = "1" ]; then
+    echo "Force rebuild: clearing outputs and re-encoding all images from the beginning..."
+    for f in $FORMATS; do
+        rm -rf "$f"
+        mkdir -p "$f"
+    done
+else
+    for f in $FORMATS; do mkdir -p "$f"; done
+fi
 
 find og -maxdepth 1 -type f \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' -o -iname '*.avif' \) \
     -printf '%f\n' | sort | jq -R -s 'split("\n") | map(select(length > 0))' > index.json
